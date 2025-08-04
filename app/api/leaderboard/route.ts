@@ -3,6 +3,11 @@ import { getDatabase } from "@/lib/mongodb"
 import { verifyToken } from "@/lib/auth"
 import { type User, type GameSession, type LeaderboardEntry, COLLECTIONS } from "@/lib/models"
 
+interface DateFilter {
+  createdAt?: { $gte: Date }
+  startTime?: { $gte: Date }
+}
+
 export async function GET(request: NextRequest) {
   try {
     const authHeader = request.headers.get("authorization")
@@ -22,27 +27,33 @@ export async function GET(request: NextRequest) {
 
     const db = await getDatabase()
 
-    let dateFilter = {}
+    let userDateFilter: DateFilter = {}
+    let sessionDateFilter: DateFilter = {}
     const now = new Date()
 
     switch (filter) {
       case "day":
         const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-        dateFilter = { createdAt: { $gte: startOfDay } }
+        userDateFilter = { createdAt: { $gte: startOfDay } }
+        sessionDateFilter = { startTime: { $gte: startOfDay } }
         break
       case "week":
         const startOfWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-        dateFilter = { createdAt: { $gte: startOfWeek } }
+        userDateFilter = { createdAt: { $gte: startOfWeek } }
+        sessionDateFilter = { startTime: { $gte: startOfWeek } }
         break
       case "month":
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-        dateFilter = { createdAt: { $gte: startOfMonth } }
+        userDateFilter = { createdAt: { $gte: startOfMonth } }
+        sessionDateFilter = { startTime: { $gte: startOfMonth } }
         break
       default:
-        dateFilter = {}
+        userDateFilter = {}
+        sessionDateFilter = {}
     }
 
     if (filter === "all") {
+      // For all-time leaderboard, just get users with wins > 0
       const leaderboard = await db
         .collection<User>(COLLECTIONS.USERS)
         .find({ wins: { $gt: 0 } })
@@ -52,11 +63,12 @@ export async function GET(request: NextRequest) {
 
       return NextResponse.json(leaderboard)
     } else {
+      // For time-filtered leaderboards, we need to count wins from game sessions
       const pipeline = [
         {
           $match: {
             status: "completed",
-            endTime: dateFilter.createdAt || { $exists: true },
+            ...sessionDateFilter,
           },
         },
         {

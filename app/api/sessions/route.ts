@@ -3,6 +3,10 @@ import { getDatabase } from "@/lib/mongodb"
 import { verifyToken } from "@/lib/auth"
 import { type GameSession, type SessionWithWinners, COLLECTIONS } from "@/lib/models"
 
+interface DateFilter {
+  startTime?: { $gte: Date }
+}
+
 export async function GET(request: NextRequest) {
   try {
     const authHeader = request.headers.get("authorization")
@@ -22,7 +26,7 @@ export async function GET(request: NextRequest) {
 
     const db = await getDatabase()
 
-    let dateFilter = {}
+    let dateFilter: DateFilter = {}
     const now = new Date()
 
     switch (filter) {

@@ -1,25 +1,20 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
+import type { LeaderboardEntry, SessionWithWinners } from "@/lib/types"
 
 type FilterType = "all" | "day" | "week" | "month"
 
 export default function LeaderboardPage() {
-  const [leaderboard, setLeaderboard] = useState([])
-  const [sessions, setSessions] = useState([])
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
+  const [sessions, setSessions] = useState<SessionWithWinners[]>([])
   const [filter, setFilter] = useState<FilterType>("all")
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<"players" | "sessions">("players")
   const router = useRouter()
 
-  useEffect(() => {
-    checkAuth()
-    fetchLeaderboard()
-    fetchSessions()
-  }, [filter])
-
-  const checkAuth = async () => {
+  const checkAuth = useCallback(async () => {
     const token = localStorage.getItem("token")
     if (!token) {
       router.push("/auth")
@@ -39,9 +34,9 @@ export default function LeaderboardPage() {
       console.error("Auth check failed:", error)
       router.push("/auth")
     }
-  }
+  }, [router])
 
-  const fetchLeaderboard = async () => {
+  const fetchLeaderboard = useCallback(async () => {
     try {
       const token = localStorage.getItem("token")
       const response = await fetch(`/api/leaderboard?filter=${filter}`, {
@@ -49,7 +44,7 @@ export default function LeaderboardPage() {
       })
 
       if (response.ok) {
-        const data = await response.json()
+        const data: LeaderboardEntry[] = await response.json()
         setLeaderboard(data)
       }
     } catch (error) {
@@ -57,9 +52,9 @@ export default function LeaderboardPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [filter])
 
-  const fetchSessions = async () => {
+  const fetchSessions = useCallback(async () => {
     try {
       const token = localStorage.getItem("token")
       const response = await fetch(`/api/sessions?filter=${filter}`, {
@@ -67,13 +62,19 @@ export default function LeaderboardPage() {
       })
 
       if (response.ok) {
-        const data = await response.json()
+        const data: SessionWithWinners[] = await response.json()
         setSessions(data)
       }
     } catch (error) {
       console.error("Failed to fetch sessions:", error)
     }
-  }
+  }, [filter])
+
+  useEffect(() => {
+    checkAuth()
+    fetchLeaderboard()
+    fetchSessions()
+  }, [checkAuth, fetchLeaderboard, fetchSessions])
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
@@ -158,7 +159,7 @@ export default function LeaderboardPage() {
               <div className="p-8 text-center text-gray-500">No players found for the selected period.</div>
             ) : (
               <div className="divide-y divide-gray-200">
-                {leaderboard.map((player: any, index) => (
+                {leaderboard.map((player: LeaderboardEntry, index) => (
                   <div key={player._id} className="px-6 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-4">
                       <div
@@ -199,7 +200,7 @@ export default function LeaderboardPage() {
               <div className="p-8 text-center text-gray-500">No sessions found for the selected period.</div>
             ) : (
               <div className="divide-y divide-gray-200">
-                {sessions.map((session: any) => (
+                {sessions.map((session: SessionWithWinners) => (
                   <div key={session._id} className="px-6 py-4">
                     <div className="flex justify-between items-start mb-2">
                       <div className="text-sm text-gray-500">{formatDate(session.startTime)}</div>

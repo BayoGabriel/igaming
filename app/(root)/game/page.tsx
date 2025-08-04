@@ -1,25 +1,19 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
+import type { User, GameSession, GameResult, Player, ApiError } from "@/lib/types"
 
 export default function GamePage() {
-  const [user, setUser] = useState<any>(null)
-  const [gameSession, setGameSession] = useState<any>(null)
+  const [user, setUser] = useState<User | null>(null)
+  const [gameSession, setGameSession] = useState<GameSession | null>(null)
   const [selectedNumber, setSelectedNumber] = useState<number | null>(null)
   const [timeLeft, setTimeLeft] = useState(0)
-  const [gameResult, setGameResult] = useState<any>(null)
+  const [gameResult, setGameResult] = useState<GameResult | null>(null)
   const [loading, setLoading] = useState(true)
   const router = useRouter()
 
-  useEffect(() => {
-    checkAuth()
-    fetchGameSession()
-    const interval = setInterval(fetchGameSession, 1000)
-    return () => clearInterval(interval)
-  }, [])
-
-  const checkAuth = async () => {
+  const checkAuth = useCallback(async () => {
     try {
       const token = localStorage.getItem("token")
       if (!token) {
@@ -32,7 +26,7 @@ export default function GamePage() {
       })
 
       if (response.ok) {
-        const userData = await response.json()
+        const userData: User = await response.json()
         setUser(userData)
       } else {
         localStorage.removeItem("token")
@@ -44,9 +38,9 @@ export default function GamePage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [router])
 
-  const fetchGameSession = async () => {
+  const fetchGameSession = useCallback(async () => {
     try {
       const token = localStorage.getItem("token")
       const response = await fetch("/api/game/current", {
@@ -54,8 +48,8 @@ export default function GamePage() {
       })
 
       if (response.ok) {
-        const session = await response.json()
-        console.log("Current session:", session) 
+        const session: GameSession | null = await response.json()
+        console.log("Current session:", session)
         setGameSession(session)
 
         if (session) {
@@ -65,12 +59,13 @@ export default function GamePage() {
             const remaining = Math.max(0, Math.floor((endTime - now) / 1000))
             setTimeLeft(remaining)
           } else if (session.status === "completed") {
-            setGameResult(session)
+            setGameResult(session as GameResult)
             setTimeLeft(0)
           }
 
-          const userInSession = session.players?.find((p: any) => p.userId === user?.id)
-          console.log("User in session:", userInSession) 
+          // Check if user is in this session
+          const userInSession = session.players?.find((p: Player) => p.userId === user?.id)
+          console.log("User in session:", userInSession)
 
           if (userInSession) {
             setSelectedNumber(userInSession.selectedNumber || null)
@@ -88,7 +83,14 @@ export default function GamePage() {
       console.error("Failed to fetch game session:", error)
       router.push("/")
     }
-  }
+  }, [user?.id, router])
+
+  useEffect(() => {
+    checkAuth()
+    fetchGameSession()
+    const interval = setInterval(fetchGameSession, 1000)
+    return () => clearInterval(interval)
+  }, [checkAuth, fetchGameSession])
 
   const selectNumber = async (number: number) => {
     if (selectedNumber !== null || timeLeft <= 0) return
@@ -107,7 +109,7 @@ export default function GamePage() {
       if (response.ok) {
         setSelectedNumber(number)
       } else {
-        const error = await response.json()
+        const error: ApiError = await response.json()
         alert(error.message || "Failed to select number")
       }
     } catch (error) {
@@ -127,7 +129,7 @@ export default function GamePage() {
       if (response.ok) {
         router.push("/")
       } else {
-        const error = await response.json()
+        const error: ApiError = await response.json()
         alert(error.message || "Failed to leave session")
       }
     } catch (error) {
@@ -145,9 +147,9 @@ export default function GamePage() {
   }
 
   if (gameResult && gameResult.status === "completed") {
-    const userPlayer = gameResult.players?.find((p: any) => p.userId === user?.id)
+    const userPlayer = gameResult.players?.find((p: Player) => p.userId === user?.id)
     const isWinner = userPlayer && userPlayer.selectedNumber === gameResult.winningNumber
-    const winners = gameResult.players?.filter((p: any) => p.selectedNumber === gameResult.winningNumber) || []
+    const winners = gameResult.players?.filter((p: Player) => p.selectedNumber === gameResult.winningNumber) || []
 
     return (
       <div className="min-h-screen bg-gray-100">
@@ -188,7 +190,7 @@ export default function GamePage() {
               <div className="bg-green-50 rounded-lg p-4 mb-6">
                 <h3 className="font-semibold text-green-800 mb-2">Winners ({winners.length})</h3>
                 <div className="space-y-1">
-                  {winners.map((winner: any, index: number) => (
+                  {winners.map((winner: Player, index: number) => (
                     <div key={index} className="text-green-700">
                       {winner.username}
                     </div>
@@ -217,7 +219,7 @@ export default function GamePage() {
     )
   }
 
-  const userInSession = gameSession.players?.find((p: any) => p.userId === user?.id)
+  const userInSession = gameSession.players?.find((p: Player) => p.userId === user?.id)
 
   if (!userInSession && gameSession.status === "active") {
     return (
@@ -304,9 +306,9 @@ export default function GamePage() {
               </span>
               <span>Time Left: {timeLeft}s</span>
             </div>
-            {gameSession?.players?.some((p: any) => p.isStarter) && (
+            {gameSession?.players?.some((p: Player) => p.isStarter) && (
               <div className="text-sm text-green-600 mt-2">
-                Session started by: {gameSession.players.find((p: any) => p.isStarter)?.username}
+                Session started by: {gameSession.players.find((p: Player) => p.isStarter)?.username}
               </div>
             )}
           </div>

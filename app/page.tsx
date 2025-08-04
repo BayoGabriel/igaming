@@ -1,103 +1,189 @@
-import Image from "next/image";
+"use client"
 
-export default function Home() {
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
+
+export default function HomePage() {
+  const [user, setUser] = useState<any>(null)
+  const [gameSession, setGameSession] = useState<any>(null)
+  const [timeLeft, setTimeLeft] = useState(0)
+  const [loading, setLoading] = useState(true)
+  const router = useRouter()
+
+  useEffect(() => {
+    checkAuth()
+    fetchGameSession()
+    const interval = setInterval(fetchGameSession, 1000)
+    return () => clearInterval(interval)
+  }, [])
+
+  const checkAuth = async () => {
+    try {
+      const token = localStorage.getItem("token")
+      if (!token) {
+        router.push("/auth")
+        return
+      }
+
+      const response = await fetch("/api/auth/me", {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+
+      if (response.ok) {
+        const userData = await response.json()
+        setUser(userData)
+      } else {
+        localStorage.removeItem("token")
+        router.push("/auth")
+      }
+    } catch (error) {
+      console.error("Auth check failed:", error)
+      router.push("/auth")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchGameSession = async () => {
+    try {
+      const token = localStorage.getItem("token")
+      const response = await fetch("/api/game/current", {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+
+      if (response.ok) {
+        const session = await response.json()
+        setGameSession(session)
+
+        if (session && session.status === "active") {
+          const endTime = new Date(session.endTime).getTime()
+          const now = new Date().getTime()
+          const remaining = Math.max(0, Math.floor((endTime - now) / 1000))
+          setTimeLeft(remaining)
+        } else {
+          setTimeLeft(0)
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch game session:", error)
+    }
+  }
+
+  const joinSession = async () => {
+    try {
+      const token = localStorage.getItem("token")
+      const response = await fetch("/api/game/join", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      })
+
+      if (response.ok) {
+        router.push("/game")
+      } else {
+        const error = await response.json()
+        alert(error.message || "Failed to join session")
+      }
+    } catch (error) {
+      console.error("Failed to join session:", error)
+      alert("Failed to join session")
+    }
+  }
+
+  const logout = () => {
+    localStorage.removeItem("token")
+    router.push("/auth")
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="text-xl">Loading...</div>
+      </div>
+    )
+  }
+
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <div className="min-h-screen bg-gray-100">
+      <nav className="bg-white shadow-sm border-b">
+        <div className="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
+          <h1 className="text-2xl font-bold text-gray-800">Game Lobby</h1>
+          <div className="flex items-center gap-4">
+            <span className="text-gray-600">Welcome, {user?.username}</span>
+            <button onClick={() => router.push("/leaderboard")} className="px-4 py-2 text-blue-600 hover:text-blue-800">
+              Leaderboard
+            </button>
+            <button onClick={logout} className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600">
+              Logout
+            </button>
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      </nav>
+
+      <div className="max-w-2xl mx-auto px-4 py-8">
+        <div className="bg-white rounded-lg shadow-md p-8 text-center">
+          <h2 className="text-3xl font-bold text-gray-800 mb-6">Number Guessing Game</h2>
+
+          {gameSession && gameSession.status === "active" ? (
+            <div className="space-y-6">
+              <div className="text-6xl font-bold text-blue-600">{timeLeft}</div>
+              <div className="text-gray-600">seconds remaining</div>
+
+              <div className="bg-gray-50 rounded-lg p-4">
+                <div className="text-sm text-gray-600 mb-2">Current Session</div>
+                <div className="text-lg font-semibold">
+                  Players: {gameSession.players?.length || 0}/{process.env.NEXT_PUBLIC_MAX_PLAYERS || 10}
+                </div>
+                {gameSession.players?.some((p: any) => p.isStarter) && (
+                  <div className="text-sm text-green-600 mt-1">
+                    Started by: {gameSession.players.find((p: any) => p.isStarter)?.username}
+                  </div>
+                )}
+              </div>
+
+              {gameSession.players?.some((p: any) => p.userId === user?.id) ? (
+                <div className="space-y-4">
+                  <div className="text-green-600 font-semibold">You're in this session!</div>
+                  <button
+                    onClick={() => router.push("/game")}
+                    className="px-8 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-semibold"
+                  >
+                    Go to Game
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={joinSession}
+                  disabled={gameSession.players?.length >= (process.env.NEXT_PUBLIC_MAX_PLAYERS || 10)}
+                  className="px-8 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:bg-gray-400 disabled:cursor-not-allowed font-semibold"
+                >
+                  {gameSession.players?.length >= (process.env.NEXT_PUBLIC_MAX_PLAYERS || 10)
+                    ? "Session Full"
+                    : "Join Session"}
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-6">
+              <div className="text-gray-600">No active session</div>
+              <div className="text-sm text-gray-500">A new session will start automatically when someone joins</div>
+              <button
+                onClick={joinSession}
+                className="px-8 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-semibold"
+              >
+                Start New Session
+              </button>
+            </div>
+          )}
+
+          <div className="mt-8 text-sm text-gray-500">
+            <p>Pick a number from 1-9 and try to match the winning number!</p>
+            <p>Sessions last 20 seconds once started.</p>
+          </div>
+        </div>
+      </div>
     </div>
-  );
+  )
 }

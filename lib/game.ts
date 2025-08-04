@@ -28,10 +28,10 @@ export interface User {
 export async function createGameSession(starterId: string, starterUsername: string): Promise<WithId<GameSession>> {
   const db = await getDatabase()
   const maxPlayers = Number.parseInt(process.env.MAX_PLAYERS_PER_SESSION || "10")
-
+  const sessionDuration = Number.parseInt(process.env.SESSION_DURATION || "20000")
   const session: Omit<GameSession, "_id"> = {
     startTime: new Date(),
-    endTime: new Date(Date.now() + 20000), // 20 seconds
+    endTime: new Date(Date.now() + sessionDuration),
     status: "active",
     players: [
       {
@@ -50,7 +50,6 @@ export async function createGameSession(starterId: string, starterUsername: stri
 export async function getCurrentSession(): Promise<WithId<GameSession> | null> {
   const db = await getDatabase()
 
-  // First, check for active sessions
   let session = await db.collection<GameSession>("gameSessions").findOne({
     status: "active",
     endTime: { $gt: new Date() },
@@ -60,7 +59,6 @@ export async function getCurrentSession(): Promise<WithId<GameSession> | null> {
     return session
   }
 
-  // Check for recently completed sessions (within last 5 seconds for result display)
   session = await db.collection<GameSession>("gameSessions").findOne({
     status: "completed",
     endTime: { $gt: new Date(Date.now() - 5000) },
@@ -87,7 +85,7 @@ export async function joinSession(sessionId: ObjectId, userId: string, username:
   }
 
   if (session.players.some((p) => p.userId === userId)) {
-    return true // Already in session
+    return true 
   }
 
   const newPlayer: Player = {
@@ -171,8 +169,6 @@ export async function completeExpiredSessions(): Promise<void> {
         },
       },
     )
-
-    // Update winner counts
     for (const winner of winners) {
       await db.collection<User>("users").updateOne({ _id: new ObjectId(winner.userId) }, { $inc: { wins: 1 } })
     }

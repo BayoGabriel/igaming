@@ -109,7 +109,6 @@ export default function HomePage() {
     <div className="min-h-screen bg-gray-100">
       <nav className="bg-white shadow-sm border-b">
         <div className="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-gray-800">Game Lobby</h1>
           <div className="flex items-center gap-4">
             <span className="text-gray-600">Welcome, {user?.username}</span>
             <button onClick={() => router.push("/leaderboard")} className="px-4 py-2 text-blue-600 hover:text-blue-800">

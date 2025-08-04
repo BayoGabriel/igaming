@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getDatabase } from "@/lib/mongodb"
 import { generateToken } from "@/lib/auth"
+import { type User, COLLECTIONS } from "@/lib/models"
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,8 +13,7 @@ export async function POST(request: NextRequest) {
 
     const db = await getDatabase()
 
-    // Check if username already exists
-    const existingUser = await db.collection("users").findOne({
+    const existingUser = await db.collection<User>(COLLECTIONS.USERS).findOne({
       username: username.trim(),
     })
 
@@ -21,14 +21,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: "Username already exists" }, { status: 400 })
     }
 
-    // Create new user
-    const user = {
+    const user: Omit<User, "_id"> = {
       username: username.trim(),
       wins: 0,
       createdAt: new Date(),
     }
 
-    const result = await db.collection("users").insertOne(user)
+    const result = await db.collection<User>(COLLECTIONS.USERS).insertOne(user)
     const token = generateToken(result.insertedId.toString())
 
     return NextResponse.json({

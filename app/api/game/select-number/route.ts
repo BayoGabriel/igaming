@@ -23,6 +23,7 @@ export async function POST(request: NextRequest) {
     }
 
     const session = await getCurrentSession()
+    console.log("Current session for number selection:", session) // Debug log
 
     if (!session || session.status !== "active") {
       return NextResponse.json({ message: "No active session" }, { status: 400 })
@@ -37,13 +38,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: "You have already selected a number" }, { status: 400 })
     }
 
+    const now = new Date()
+    if (session.endTime <= now) {
+      return NextResponse.json({ message: "Session has expired" }, { status: 400 })
+    }
+
     const selected = await selectNumber(session._id!, decoded.userId, number)
 
     if (!selected) {
       return NextResponse.json({ message: "Failed to select number" }, { status: 400 })
     }
 
-    return NextResponse.json({ message: "Number selected successfully" })
+    return NextResponse.json({ message: "Number selected successfully", selectedNumber: number })
   } catch (error) {
     console.error("Select number error:", error)
     return NextResponse.json({ message: "Internal server error" }, { status: 500 })

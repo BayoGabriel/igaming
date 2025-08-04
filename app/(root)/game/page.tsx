@@ -55,6 +55,7 @@ export default function GamePage() {
 
       if (response.ok) {
         const session = await response.json()
+        console.log("Current session:", session) 
         setGameSession(session)
 
         if (session) {
@@ -68,20 +69,24 @@ export default function GamePage() {
             setTimeLeft(0)
           }
 
-          // Check if user is in this session
           const userInSession = session.players?.find((p: any) => p.userId === user?.id)
+          console.log("User in session:", userInSession) 
+
           if (userInSession) {
-            setSelectedNumber(userInSession.selectedNumber)
+            setSelectedNumber(userInSession.selectedNumber || null)
           } else if (session.status === "active") {
-            // User not in session, redirect to home
-            router.push("/")
+            console.log("User not in active session")
           }
         } else {
           router.push("/")
         }
+      } else {
+        console.error("Failed to fetch session:", response.status)
+        router.push("/")
       }
     } catch (error) {
       console.error("Failed to fetch game session:", error)
+      router.push("/")
     }
   }
 
@@ -197,6 +202,47 @@ export default function GamePage() {
               className="px-8 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-semibold"
             >
               Play Again
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!gameSession) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="text-xl">No active session found. Redirecting...</div>
+      </div>
+    )
+  }
+
+  const userInSession = gameSession.players?.find((p: any) => p.userId === user?.id)
+
+  if (!userInSession && gameSession.status === "active") {
+    return (
+      <div className="min-h-screen bg-gray-100">
+        <nav className="bg-white shadow-sm border-b">
+          <div className="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
+            <h1 className="text-2xl font-bold text-gray-800">Game Session</h1>
+            <button
+              onClick={() => router.push("/")}
+              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            >
+              Back to Home
+            </button>
+          </div>
+        </nav>
+
+        <div className="max-w-2xl mx-auto px-4 py-8">
+          <div className="bg-white rounded-lg shadow-md p-8 text-center">
+            <h2 className="text-2xl font-bold text-red-600 mb-4">Not in Session</h2>
+            <p className="text-gray-600 mb-6">You are not part of the current game session.</p>
+            <button
+              onClick={() => router.push("/")}
+              className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+            >
+              Go to Home
             </button>
           </div>
         </div>

@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { getDatabase } from "@/lib/mongodb"
 import { generateToken } from "@/lib/auth"
 import { getCurrentSession } from "@/lib/game"
+import { type User, COLLECTIONS } from "@/lib/models"
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,7 +14,7 @@ export async function POST(request: NextRequest) {
 
     const db = await getDatabase()
 
-    const user = await db.collection("users").findOne({
+    const user = await db.collection<User>(COLLECTIONS.USERS).findOne({
       username: username.trim(),
     })
 
@@ -21,10 +22,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: "User not found" }, { status: 404 })
     }
 
-    // Check if user has an active session
     const currentSession = await getCurrentSession()
     if (currentSession && currentSession.status === "active") {
-      const userInSession = currentSession.players.find((p) => p.userId === user._id.toString())
+      const userInSession = currentSession.players.find((p) => p.userId === user._id!.toString())
       if (userInSession) {
         return NextResponse.json(
           { message: "You already have an active session. Please wait for it to complete." },
@@ -33,12 +33,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const token = generateToken(user._id.toString())
+    const token = generateToken(user._id!.toString())
 
     return NextResponse.json({
       token,
       user: {
-        id: user._id.toString(),
+        id: user._id!.toString(),
         username: user.username,
         wins: user.wins,
       },

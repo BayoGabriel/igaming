@@ -34,7 +34,6 @@ export interface SessionWithWinners extends GameSession {
   winners: string[]
 }
 
-// Type guards
 export function isUser(obj: any): obj is User {
   return obj && typeof obj.username === "string" && typeof obj.wins === "number"
 }
@@ -43,7 +42,6 @@ export function isGameSession(obj: any): obj is GameSession {
   return obj && obj.status && Array.isArray(obj.players)
 }
 
-// Database collection names
 export const COLLECTIONS = {
   USERS: "users",
   GAME_SESSIONS: "gameSessions",

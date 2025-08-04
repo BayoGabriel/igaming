@@ -3,6 +3,7 @@ import { getDatabase } from "@/lib/mongodb"
 import { verifyToken } from "@/lib/auth"
 import { getCurrentSession, createGameSession, joinSession, completeExpiredSessions } from "@/lib/game"
 import { ObjectId } from "mongodb"
+import { type User, COLLECTIONS } from "@/lib/models"
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,7 +20,7 @@ export async function POST(request: NextRequest) {
     }
 
     const db = await getDatabase()
-    const user = await db.collection("users").findOne({
+    const user = await db.collection<User>(COLLECTIONS.USERS).findOne({
       _id: new ObjectId(decoded.userId),
     })
 
@@ -27,12 +28,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: "User not found" }, { status: 404 })
     }
 
-    // Complete any expired sessions first
     await completeExpiredSessions()
 
     let session = await getCurrentSession()
-
-    // Check if user is already in an active session
     if (session && session.status === "active") {
       const userInSession = session.players.find((p) => p.userId === decoded.userId)
       if (userInSession) {
@@ -40,11 +38,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // If no active session, create a new one
     if (!session || session.status !== "active") {
       session = await createGameSession(decoded.userId, user.username)
     } else {
-      // Join existing session
       const joined = await joinSession(session._id!, decoded.userId, user.username)
       if (!joined) {
         return NextResponse.json({ message: "Failed to join session. It may be full or expired." }, { status: 400 })

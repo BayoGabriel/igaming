@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getDatabase } from "@/lib/mongodb"
 import { verifyToken } from "@/lib/auth"
+import { type GameSession, type SessionWithWinners, COLLECTIONS } from "@/lib/models"
 
 export async function GET(request: NextRequest) {
   try {
@@ -72,7 +73,10 @@ export async function GET(request: NextRequest) {
       },
     ]
 
-    const sessions = await db.collection("gameSessions").aggregate(pipeline).toArray()
+    const sessions = await db
+      .collection<GameSession>(COLLECTIONS.GAME_SESSIONS)
+      .aggregate<SessionWithWinners>(pipeline)
+      .toArray()
     return NextResponse.json(sessions)
   } catch (error) {
     console.error("Sessions error:", error)

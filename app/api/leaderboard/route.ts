@@ -43,7 +43,6 @@ export async function GET(request: NextRequest) {
     }
 
     if (filter === "all") {
-      // For all-time leaderboard, just get users with wins > 0
       const leaderboard = await db
         .collection<User>(COLLECTIONS.USERS)
         .find({ wins: { $gt: 0 } })
@@ -53,7 +52,6 @@ export async function GET(request: NextRequest) {
 
       return NextResponse.json(leaderboard)
     } else {
-      // For time-filtered leaderboards, we need to count wins from game sessions
       const pipeline = [
         {
           $match: {

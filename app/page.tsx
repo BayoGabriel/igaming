@@ -1,23 +1,17 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
+import type { User, GameSession, Player, ApiError } from "@/lib/types"
 
 export default function HomePage() {
-  const [user, setUser] = useState<any>(null)
-  const [gameSession, setGameSession] = useState<any>(null)
+  const [user, setUser] = useState<User | null>(null)
+  const [gameSession, setGameSession] = useState<GameSession | null>(null)
   const [timeLeft, setTimeLeft] = useState(0)
   const [loading, setLoading] = useState(true)
   const router = useRouter()
 
-  useEffect(() => {
-    checkAuth()
-    fetchGameSession()
-    const interval = setInterval(fetchGameSession, 1000)
-    return () => clearInterval(interval)
-  }, [])
-
-  const checkAuth = async () => {
+  const checkAuth = useCallback(async () => {
     try {
       const token = localStorage.getItem("token")
       if (!token) {
@@ -30,7 +24,7 @@ export default function HomePage() {
       })
 
       if (response.ok) {
-        const userData = await response.json()
+        const userData: User = await response.json()
         setUser(userData)
       } else {
         localStorage.removeItem("token")
@@ -42,9 +36,9 @@ export default function HomePage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [router])
 
-  const fetchGameSession = async () => {
+  const fetchGameSession = useCallback(async () => {
     try {
       const token = localStorage.getItem("token")
       const response = await fetch("/api/game/current", {
@@ -52,7 +46,7 @@ export default function HomePage() {
       })
 
       if (response.ok) {
-        const session = await response.json()
+        const session: GameSession | null = await response.json()
         setGameSession(session)
 
         if (session && session.status === "active") {
@@ -67,7 +61,14 @@ export default function HomePage() {
     } catch (error) {
       console.error("Failed to fetch game session:", error)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    checkAuth()
+    fetchGameSession()
+    const interval = setInterval(fetchGameSession, 1000)
+    return () => clearInterval(interval)
+  }, [checkAuth, fetchGameSession])
 
   const joinSession = async () => {
     try {
@@ -83,7 +84,7 @@ export default function HomePage() {
       if (response.ok) {
         router.push("/game")
       } else {
-        const error = await response.json()
+        const error: ApiError = await response.json()
         alert(error.message || "Failed to join session")
       }
     } catch (error) {
@@ -109,6 +110,7 @@ export default function HomePage() {
     <div className="min-h-screen bg-gray-100">
       <nav className="bg-white shadow-sm border-b">
         <div className="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
+          <h1 className="text-2xl font-bold text-gray-800">Game Lobby</h1>
           <div className="flex items-center gap-4">
             <span className="text-gray-600">Welcome, {user?.username}</span>
             <button onClick={() => router.push("/leaderboard")} className="px-4 py-2 text-blue-600 hover:text-blue-800">
@@ -135,16 +137,16 @@ export default function HomePage() {
                 <div className="text-lg font-semibold">
                   Players: {gameSession.players?.length || 0}/{process.env.NEXT_PUBLIC_MAX_PLAYERS || 10}
                 </div>
-                {gameSession.players?.some((p: any) => p.isStarter) && (
+                {gameSession.players?.some((p: Player) => p.isStarter) && (
                   <div className="text-sm text-green-600 mt-1">
-                    Started by: {gameSession.players.find((p: any) => p.isStarter)?.username}
+                    Started by: {gameSession.players.find((p: Player) => p.isStarter)?.username}
                   </div>
                 )}
               </div>
 
-              {gameSession.players?.some((p: any) => p.userId === user?.id) ? (
+              {gameSession.players?.some((p: Player) => p.userId === user?.id) ? (
                 <div className="space-y-4">
-                  <div className="text-green-600 font-semibold">You're in this session!</div>
+                  <div className="text-green-600 font-semibold">You&apos;re in this session!</div>
                   <button
                     onClick={() => router.push("/game")}
                     className="px-8 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-semibold"
@@ -155,10 +157,10 @@ export default function HomePage() {
               ) : (
                 <button
                   onClick={joinSession}
-                  disabled={gameSession.players?.length >= (process.env.NEXT_PUBLIC_MAX_PLAYERS || 10)}
+                  disabled={gameSession.players?.length >= (Number(process.env.NEXT_PUBLIC_MAX_PLAYERS) || 10)}
                   className="px-8 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:bg-gray-400 disabled:cursor-not-allowed font-semibold"
                 >
-                  {gameSession.players?.length >= (process.env.NEXT_PUBLIC_MAX_PLAYERS || 10)
+                  {gameSession.players?.length >= (Number(process.env.NEXT_PUBLIC_MAX_PLAYERS) || 10)
                     ? "Session Full"
                     : "Join Session"}
                 </button>

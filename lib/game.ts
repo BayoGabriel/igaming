@@ -29,6 +29,7 @@ export async function createGameSession(starterId: string, starterUsername: stri
   const db = await getDatabase()
   const maxPlayers = Number.parseInt(process.env.MAX_PLAYERS_PER_SESSION || "10")
   const sessionDuration = Number.parseInt(process.env.SESSION_DURATION || "20000")
+
   const session: Omit<GameSession, "_id"> = {
     startTime: new Date(),
     endTime: new Date(Date.now() + sessionDuration),
@@ -85,7 +86,7 @@ export async function joinSession(sessionId: ObjectId, userId: string, username:
   }
 
   if (session.players.some((p) => p.userId === userId)) {
-    return true 
+    return true
   }
 
   const newPlayer: Player = {
@@ -117,7 +118,7 @@ export async function leaveSession(sessionId: ObjectId, userId: string): Promise
     },
     {
       $pull: {
-        players: { userId } as any,
+        players: { userId } as Record<string, unknown>,
       },
     },
   )
@@ -169,6 +170,7 @@ export async function completeExpiredSessions(): Promise<void> {
         },
       },
     )
+
     for (const winner of winners) {
       await db.collection<User>("users").updateOne({ _id: new ObjectId(winner.userId) }, { $inc: { wins: 1 } })
     }
